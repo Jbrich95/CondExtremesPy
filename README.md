@@ -18,3 +18,4 @@ The Jupyter notebooks provide a walkthrough for using the various functions in t
 
 * BivFit.ipynb - Simple bivariate fit to toy data and Australian Summer temperatures data
 * SpatialModelPrelim.ipynb - Some investigation to motivate the use of a spatial model
+* MultiFit.ipynb - Multivariate fit to toy data and Australian Summer temperatures data

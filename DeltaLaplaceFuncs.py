@@ -1,43 +1,41 @@
 import numpy as np
 import numbers
-
+from scipy.stats import norm
+from scipy.stats import multivariate_normal as mvn
+from scipy.special import gamma as gam_func
+from scipy.stats import gamma
 
 class DeltaLaplace:
     """Iterator for looping over a sequence backwards."""
 
     def __init__(self, loc, scale, shape):
-        from scipy.special import gamma
 
         self.loc = loc
 
         # Scale sigma by k
-        k = np.sqrt(gamma(1 / shape) / gamma(3 / shape))
+        k = np.sqrt(gam_func(1 / shape) / gam_func(3 / shape))
         self.scale = scale * k
         self.shape = shape
 
     def logpdf(self, x):
 
-        from scipy.special import gamma
-
         mu = self.loc
         sigma = self.scale
         delta = self.shape
-        ld = -abs((x - mu) / sigma) ** delta + np.log(delta) - np.log(2 * sigma) - gamma(1 / delta)
+        ld = -abs((x - mu) / sigma) ** delta + np.log(delta) - np.log(2 * sigma) - np.log(gam_func(1 / delta))
 
         return ld
 
     def pdf(self, x):
-        from scipy.special import gamma
 
         mu = self.loc
         sigma = self.scale
         delta = self.shape
-        ld = -abs((x - mu) / sigma) ** delta + np.log(delta) - np.log(2 * sigma) - gamma(1 / delta)
+        ld = -abs((x - mu) / sigma) ** delta + np.log(delta) - np.log(2 * sigma) - np.log(gam_func(1 / delta))
 
         return np.exp(ld)
 
     def cdf(self, x):
-        from scipy.stats import gamma
 
         mu = self.loc
         sigma = self.scale
@@ -58,7 +56,6 @@ class DeltaLaplace:
         return result
 
     def logcdf(self, x):
-        from scipy.stats import gamma
 
         mu = self.loc
         sigma = self.scale
@@ -79,7 +76,6 @@ class DeltaLaplace:
         return np.log(result)
 
     def sf(self, x):
-        from scipy.stats import gamma
 
         mu = self.loc
         sigma = self.scale
@@ -100,7 +96,6 @@ class DeltaLaplace:
         return result
 
     def logsf(self, x):
-        from scipy.stats import gamma
 
         mu = self.loc
         sigma = self.scale
@@ -120,7 +115,6 @@ class DeltaLaplace:
         return np.log(result)
 
     def ppf(self, q):
-        from scipy.stats import gamma
 
         mu = self.loc
         sigma = self.scale
@@ -142,7 +136,6 @@ class DeltaLaplace:
         return result
 
     def isf(self, q):
-        from scipy.stats import gamma
         q = 1 - q
         result = q
 
@@ -165,3 +158,64 @@ class DeltaLaplace:
     def rvs(self, size=1, random_state=None):
         np.random.seed(random_state)
         return self.ppf( np.random.rand(size))
+
+    
+    
+class MultiDeltaLaplace:
+
+    def __init__(self, locs, cov, shapes):
+
+        self.locs = locs
+        self.cov = cov
+        self.shapes = shapes
+       
+    def logpdf(self, x):
+        
+        mus = self.locs
+        deltas = self.shapes
+        sigmas = np.sqrt(np.diagonal(self.cov))
+        Sigma = self.cov
+        
+        #Transform from DeltaLaplace margins to normal
+        distsDL = list(map(DeltaLaplace, mus,sigmas,deltas))
+        vals_sfDL=list(map(lambda distsDL, x:  distsDL.sf(x), distsDL, x))
+        distsnorm = list(map(norm, mus,sigmas))
+        vals_norm = list(map(lambda distsnorm, x: distsnorm.isf(x), distsnorm, vals_sfDL))
+        #Density of multivariate normal
+        ld1 = mvn(mus,cov = Sigma).logpdf(vals_norm)
+        #Jacobian from transformation
+        ld2 = sum(list(map(lambda distsDL, x:  distsDL.logpdf(x), distsDL, x)))- sum( list(map(lambda distsnorm, x: distsnorm.logpdf(x), distsnorm, vals_norm)))
+
+        return ld1 + ld2
+
+    def logpdf(self, x):
+        
+        mus = self.locs
+        deltas = self.shapes
+        sigmas = np.sqrt(np.diagonal(self.cov))
+        Sigma = self.cov
+        
+        #Transform from DeltaLaplace margins to normal
+        distsDL = list(map(DeltaLaplace, mus,sigmas,deltas))
+        vals_sfDL=list(map(lambda distsDL, x:  distsDL.sf(x), distsDL, x))
+        distsnorm = list(map(norm, mus,sigmas))
+        vals_norm = list(map(lambda distsnorm, x: distsnorm.isf(x), distsnorm, vals_sfDL))
+        #Density of multivariate normal
+        ld1 = mvn(mus,cov = Sigma).logpdf(vals_norm)
+        #Jacobian from transformation
+        ld2 = sum(list(map(lambda distsDL, x:  distsDL.logpdf(x), distsDL, x)))- sum( list(map(lambda distsnorm, x: distsnorm.logpdf(x), distsnorm, vals_norm)))
+
+        return np.exp(ld1 + ld2)
+
+    def rvs(self, size=1, random_state=None):
+        mus = self.locs
+        deltas = self.shapes
+        sigmas = np.sqrt(np.diagonal(self.cov))
+        Sigma = self.cov
+        #Simulate MVN draws
+        norm_vals=mvn(mus, cov = Sigma).rvs(size,random_state).transpose()
+        #Transform to DL margins
+        distsDL = list(map(DeltaLaplace, mus,sigmas,deltas))
+        vals_sfDL=list(map(lambda distsDL, x:  distsDL.cdf(x), distsDL, norm_vals))
+        
+        return vals_sfDL
