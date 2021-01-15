@@ -16,5 +16,5 @@ The Jupyter notebooks provide a walkthrough for using the various functions in t
 
 ### Notebooks
 
-* CondExtremesBivariateFit.ipynb - Simple bivariate fit to toy data and Australian Summer temperatures data
+* BivFit.ipynb - Simple bivariate fit to toy data and Australian Summer temperatures data
 * SpatialModelPrelim.ipynb - Some investigation to motivate the use of a spatial model
