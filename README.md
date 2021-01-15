@@ -10,4 +10,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## Walkthrough
 
+The Jupyter notebooks provide a walkthrough for using the various functions in the module Master_Functions.py.  
+
+### Notebooks
+
+* CondExtremesBivariateFit.ipynb - Simple bivariate fit to toy data and Australian Summer temperatures data
+* SpatialModelPrelim.ipynb - Some investigation to motivate the use of a spatial model
