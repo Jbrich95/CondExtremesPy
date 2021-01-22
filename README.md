@@ -1,5 +1,7 @@
 # Functions for fitting Heffernan and Tawn (2004) conditional extremes models and spatial derivatives in Python
 
+## ! Currently supports MV fit, although likelihood evaluation is slow !
+
 ## Installation
 
 ```{python}
@@ -18,4 +20,4 @@ The Jupyter notebooks provide a walkthrough for using the various functions in t
 
 * BivFit.ipynb - Simple bivariate fit to toy data and Australian Summer temperatures data
 * SpatialModelPrelim.ipynb - Some investigation to motivate the use of a spatial model
-* MultiFit.ipynb - Multivariate fit to toy data and Australian Summer temperatures data
+* MultiFit.ipynb - Multivariate fit to toy data 

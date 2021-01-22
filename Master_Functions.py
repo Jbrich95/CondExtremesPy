@@ -1,6 +1,6 @@
 from scipy.stats import norm
 import numpy as np
-from DeltaLaplaceFuncs import DeltaLaplace
+from DeltaLaplaceFuncs import *
 import pandas as pd
 
 
@@ -136,9 +136,80 @@ def plot_bivariate_condExt_fit(X, Y, u, par_ests, probs=np.linspace(0.05, 0.95, 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     plt.tight_layout()
-    if type == "Both":
+    if plot_type == "Both":
         fig.colorbar(sm, label="Probability", orientation="horizontal", ax=axs.ravel().tolist(), shrink=0.95)
     else:
         fig.colorbar(sm, label="Probability", orientation="horizontal", shrink=0.95)
 
     plt.show()
+
+import time
+    
+def CondExtMevNegLogLik(x, X_data, Y_data,par_lens,cor_len,alpha_range=np.array([0, 1])):
+    p=Y_data.shape[1]
+    n=Y_data.shape[0]
+    alpha_len,beta_len,mu_len,sig_len,delta_len = par_lens[0],par_lens[1],par_lens[2],par_lens[3],par_lens[4]
+
+    use_DL=True
+    if delta_len == 0:
+        use_DL= False
+    if not(cor_len == 1 or cor_len == 0.5* p*(p-1)):
+        raise AttributeError("cor_len accepts inputs of either 1 or p(p-1)/2")
+    if not sum(par_lens)==(len(x)-cor_len):
+        raise AttributeError("Sum of par_lens not equal to length of input parameters")
+    if not use_DL:
+        if  any(not (l ==1 or l==p) for l in par_lens[0:4]):
+            raise AttributeError("par_lens accepts inputs of either 1 or p = Y_data.shape[1]")
+    else:
+        if  any(not (l ==1 or l==p) for l in par_lens):
+            raise AttributeError("par_lens accepts inputs of either 1 or p = Y_data.shape[1]")
+    
+
+    if not use_DL:
+
+        alphas, betas, mus, sigmas = x[0:alpha_len],x[alpha_len:alpha_len+beta_len],x[alpha_len+beta_len:alpha_len+beta_len+mu_len],x[-(sig_len+cor_len):-cor_len]
+
+    else:
+
+        alphas, betas, mus, sigmas, deltas =  x[0:alpha_len],x[alpha_len:alpha_len+beta_len],x[alpha_len+beta_len:alpha_len+beta_len+mu_len],x[alpha_len+beta_len+mu_len:alpha_len+beta_len+mu_len+sig_len], x[-(delta_len+cor_len):-(cor_len)]
+        if np.min(deltas) <= 0:
+            return 1e10
+
+
+
+    if np.min(alphas) < alpha_range[0] or np.max(alphas) < alpha_range[0]:
+        return 1e10
+
+    if np.min(sigmas) <= 0 or np.min(betas) < 0 or np.max(betas) > 1:
+        return 1e10
+
+    cors = x[-cor_len:]
+
+    Cor=np.zeros(shape=([p,p]))
+    for i in range(0,p):
+        Cor[i,i] = 1 
+    count = 0
+    for i in range(1,p):
+        for j in range(0,i):
+            Cor[i,j] = Cor[j,i] = cors[count]
+            count = count +1
+
+
+    Cov=np.matmul(np.diag(sigmas),np.matmul(Cor,np.diag(sigmas)))
+    
+    def is_pos_def(x):
+        return np.all(np.linalg.eigvals(x) > 0)
+
+    if not is_pos_def(Cov):
+        return 1e10
+    
+    if not use_DL:
+        dist = mvn(mean=mus, cov=Cov)
+    else:
+        dist = MultiDeltaLaplace(locs=mus, cov=Cov, shapes=deltas)
+    np.seterr(divide='ignore', invalid='ignore')   
+    numer=(Y_data - np.matmul(np.array([X_data]*p).transpose(),np.diag(alphas)))
+    denom = (np.asarray([x**beta for x,beta in zip(np.array([X_data]*p),betas)])).transpose()
+  
+    Z=numer/denom
+    return -np.sum([dist.logpdf(Z[i,]) for i in range(0,n)]) + np.sum(np.log([x**beta for x,beta in zip(np.array([X_data]*p),betas)]))
